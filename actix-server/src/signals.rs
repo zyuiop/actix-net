@@ -58,7 +58,7 @@ impl Future for StopSignal {
 
 /// Process signal listener.
 pub(crate) struct OsSignals {
-    #[cfg(not(unix))]
+    #[cfg(all(not(unix), not(target_os = "hermit")))]
     signals: futures_core::future::BoxFuture<'static, std::io::Result<()>>,
 
     #[cfg(unix)]
@@ -70,11 +70,16 @@ impl OsSignals {
     pub(crate) fn new() -> Self {
         trace!("setting up OS signal listener");
 
-        #[cfg(not(unix))]
+        #[cfg(all(not(unix), not(target_os = "hermit")))]
         {
             OsSignals {
                 signals: Box::pin(actix_rt::signal::ctrl_c()),
             }
+        }
+
+        #[cfg(target_os = "hermit")]
+        {
+            OsSignals {}
         }
 
         #[cfg(unix)]
@@ -110,9 +115,14 @@ impl Future for OsSignals {
     type Output = SignalKind;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        #[cfg(not(unix))]
+        #[cfg(all(not(unix), not(target_os = "hermit")))]
         {
             self.signals.as_mut().poll(cx).map(|_| SignalKind::OsInt)
+        }
+
+        #[cfg(target_os = "hermit")]
+        {
+            Poll::Pending
         }
 
         #[cfg(unix)]

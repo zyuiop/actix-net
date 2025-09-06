@@ -223,6 +223,26 @@ mod unix_impl {
     }
 }
 
+#[cfg(target_os = "hermit")]
+mod hermit_impl {
+    use std::os::hermit::io::{FromRawFd, IntoRawFd};
+
+    use super::*;
+
+    // HACK: This is a workaround and we need an efficient way to convert between Mio and Tokio stream
+    impl FromStream for TcpStream {
+        fn from_mio(sock: MioStream) -> io::Result<Self> {
+            match sock {
+                MioStream::Tcp(mio) => {
+                    let raw = IntoRawFd::into_raw_fd(mio);
+                    // SAFETY: This is an in-place conversion from Mio stream to Tokio stream.
+                    TcpStream::from_std(unsafe { FromRawFd::from_raw_fd(raw) })
+                }
+            }
+        }
+    }
+}
+
 pub(crate) fn create_mio_tcp_listener(
     addr: StdSocketAddr,
     backlog: u32,
