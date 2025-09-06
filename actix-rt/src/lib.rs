@@ -79,6 +79,8 @@ pub mod signal {
         //! Unix specific signals (Tokio re-exports).
         pub use tokio::signal::unix::*;
     }
+
+    #[cfg(any(unix, windows))]
     pub use tokio::signal::ctrl_c;
 }
 
